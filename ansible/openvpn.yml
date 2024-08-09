@@ -1,0 +1,17 @@
+- name: Check Instance
+  hosts: myhosts
+  tasks:
+    - name: Ping my hosts
+      ansible.builtin.ping:
+
+    - name: Print message
+      ansible.builtin.debug:
+        msg: I am alive
+
+    - name: Update apt
+      ansible.builtin.shell:
+        cmd: sudo apt update
+
+    - name: Install openvpn and easy-rsa
+      ansible.builtin.shell:
+        cmd: sudo apt install -y openvpn easy-rsa

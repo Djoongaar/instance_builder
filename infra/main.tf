@@ -35,7 +35,12 @@ resource "aws_security_group" "allow_ssh" {
     to_port     = 22
     protocol    = "tcp"
   }
-
+  ingress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 8
+    to_port     = 0
+    protocol    = "icmp"
+  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -83,17 +88,6 @@ output "instance_id" {
 output "instance_public_ip" {
   description = "Public IP address of the EC2 instance"
   value       = aws_instance.server.public_ip
-}
-
-output "public_key" {
-  description = "Public key to OpenSSH"
-  value       = tls_private_key.id_rsa.public_key_openssh
-}
-
-output "private_key" {
-  description = "Private key to OpenSSH"
-  value       = tls_private_key.id_rsa.private_key_openssh
-  sensitive   = true
 }
 
 resource "local_file" "private_key" {

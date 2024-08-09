@@ -6,6 +6,7 @@ services:
     tty: true
     volumes:
       - ./infra:/code/infra
+      - ./ansible:/code/ansible
     environment:
       TF_VAR_instance_name: "newServer"
       TF_VAR_instance_type: "t2.micro"

@@ -1,3 +1,4 @@
+.env
 .idea/
 infra/.*
 infra/terraform*
