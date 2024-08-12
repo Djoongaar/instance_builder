@@ -2,3 +2,4 @@
 .idea/
 infra/.*
 infra/terraform*
+ansible/inventory.ini
