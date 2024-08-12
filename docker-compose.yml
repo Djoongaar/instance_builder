@@ -5,7 +5,7 @@ services:
     command: bash
     tty: true
     volumes:
-      - ./infra:/code/infra
+      - ./vpn:/code/vpn
       - ./ansible:/code/ansible
     environment:
       TF_VAR_instance_name: "newServer"

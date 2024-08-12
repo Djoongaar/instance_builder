@@ -2,8 +2,8 @@
 
 docker compose up -d &&
 docker exec instance_builder bash -c """
-  cd infra &&
+  cd vpn &&
   terraform destroy -auto-approve
   """
 
-rm -f ansible/inventory.ini
+rm -f vpn/inventory.ini

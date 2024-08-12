@@ -1,4 +1,4 @@
-- name: Check Instance
+- name: Install OpenVPN Server
   hosts: myhosts
   tasks:
     - name: Ping my hosts
@@ -8,6 +8,10 @@
       ansible.builtin.debug:
         msg: I am alive
 
+    - name: Whoami
+      ansible.builtin.shell:
+        cmd: whoami
+
     - name: Update apt
       ansible.builtin.shell:
         cmd: sudo apt update
@@ -15,3 +19,57 @@
     - name: Install openvpn and easy-rsa
       ansible.builtin.shell:
         cmd: sudo apt install -y openvpn easy-rsa
+
+    - name: Create easy-rsa directory
+      ansible.builtin.file:
+        path: ~/easy-rsa
+        state: directory
+        mode: '0700'
+        owner: admin
+        group: admin
+
+    - name: Create a symbolic link
+      ansible.builtin.shell:
+        cmd: ln -fs /usr/share/easy-rsa/* ~/easy-rsa/
+
+    - name: Setting vars
+      ansible.builtin.shell: |
+        rm -f ~/easy-rsa/vars
+        touch ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_COUNTRY    \"US\""                       >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_PROVINCE   \"NewYork\""                  >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_CITY       \"New York City\""            >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_ORG        \"DigitalOcean\""             >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_EMAIL      \"ipsharaev@gmail.com\""      >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_REQ_OU         \"Community\""                >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_ALGO           \"ec\""                       >> ~/easy-rsa/vars
+        echo "set_var EASYRSA_DIGEST         \"sha512\""                   >> ~/easy-rsa/vars
+
+    - name: Generate PKI
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch init-pki
+
+    - name: Generate OpenVPN Certificate Request
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch gen-req server nopass
+        sudo cp ~/easy-rsa/pki/private/server.key /etc/openvpn/server/
+
+    - name: Building CA
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch build-ca nopass
+
+    - name: Signing the OpenVPN Certificate Request
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch sign-req server server
+        sudo cp ~/easy-rsa/pki/ca.crt /etc/openvpn/server/ca.crt
+        sudo cp ~/easy-rsa/pki/issued/server.crt /etc/openvpn/server/server.crt
+
+    - name: Generate OpenVPN TLS-crypt key
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        /usr/sbin/openvpn --genkey --secret ta.key
+        sudo cp ta.key /etc/openvpn/server

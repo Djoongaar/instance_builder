@@ -5,7 +5,7 @@ docker compose up -d &&
 ### BUILD AN INSTANCE BY TERRAFORM
 
 docker exec instance_builder bash -c """
-  cd infra &&
+  cd vpn &&
   terraform init &&
   terraform fmt &&
   terraform validate &&
@@ -17,10 +17,6 @@ docker exec instance_builder bash -c """
 
 ### SAVE INSTANCE DATA INTO INVENTORY
 
-rm -f ansible/inventory.ini
-echo "[myhosts]" >> ansible/inventory.ini
-echo "$(docker exec instance_builder bash -c "cd infra && terraform output instance_public_ip")" >> ansible/inventory.ini
-
-### INSTALLING OPENVPN and EASY-RSA
-
-docker exec instance_builder bash -c "ansible-playbook -i ansible/inventory.ini ansible/openvpn.yml"
+rm -f vpn/inventory.ini
+echo "[myhosts]" >> vpn/inventory.ini
+echo "$(docker exec instance_builder bash -c "cd vpn && terraform output instance_public_ip")" >> vpn/inventory.ini

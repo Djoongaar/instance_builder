@@ -1,5 +1,5 @@
 .env
 .idea/
-infra/.*
-infra/terraform*
-ansible/inventory.ini
+vpn/.*
+vpn/terraform*
+vpn/inventory.ini
