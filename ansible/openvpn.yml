@@ -73,3 +73,36 @@
         cd ~/easy-rsa
         /usr/sbin/openvpn --genkey --secret ta.key
         sudo cp ta.key /etc/openvpn/server
+
+    - name: Create Client Config
+      ansible.builtin.shell: |
+        mkdir -p ~/client-config/keys
+        chmod -R 700 ~/client-configs
+
+    - name: Add Certificate for Admin
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch gen-req admin nopass
+        cp pki/private/admin.key ~/client-config/keys/
+        ./easyrsa --batch sign-req client admin
+        cp pki/issued/admin.crt ~/client-config/keys/
+        cp ~/easy-rsa/pki/ca.crt ~/client-config/keys/
+        cp ta.key ~/client-config/keys/
+
+    - name: Configure OpenVPN server
+      ansible.builtin.shell: |
+        sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf ~/server.conf
+        sed -i "/^tls-auth ta.key 0/c\; tls-auth ta.key 0" ~/server.conf
+        sed -i "/^cipher AES-256-CBC/c\; cipher AES-256-CBC" ~/server.conf
+        sed -i "/^dh dh2048.pem/c\; dh dh2048.pem" ~/server.conf
+        sed -i "/^;push \"dhcp-option DNS 208.67.222.222\"/c\push \"dhcp-option DNS 208.67.222.222\"" ~/server.conf
+        sed -i "/^;push \"dhcp-option DNS 208.67.220.220\"/c\push \"dhcp-option DNS 208.67.220.220\"" ~/server.conf
+        echo -e "\n" >> ~/server.conf
+        echo "dh none" >> ~/server.conf
+        echo "tls-crypt ta.key" >> ~/server.conf
+        echo "cipher AES-256-GCM" >> ~/server.conf
+        echo "auth SHA256" >> ~/server.conf
+        echo "user nobody" >> ~/server.conf
+        echo "group nogroup" >> ~/server.conf
+        echo "push \"redirect-gateway def1 bypass-dhcp\"" >> ~/server.conf
+        sudo cp ~/server.conf /etc/openvpn/server/
