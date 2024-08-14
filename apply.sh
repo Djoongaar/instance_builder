@@ -44,7 +44,7 @@ create_server() {
     """
 
   # Saving instance configuration into json file
-  rm -f vpn/config.json &&
+  rm -f vpn/instance.json &&
   docker run \
     --rm \
     --volume "./vpn:/code/vpn" \
@@ -53,11 +53,11 @@ create_server() {
     bash -c """
       cd vpn &&
       terraform output -json
-    """ > vpn/config.json
+    """ > vpn/instance.json
 
   # Exporting variables
-  export INSTANCE_PUBLIC_IP=$(cat vpn/config.json | jq -r '.instance_public_ip.value')
-  export INSTANCE_ID=$(cat vpn/config.json | jq -r '.instance_id.value')
+  export INSTANCE_PUBLIC_IP=$(cat vpn/instance.json | jq -r '.instance_public_ip.value')
+  export INSTANCE_ID=$(cat vpn/instance.json | jq -r '.instance_id.value')
 
   # Creating inventory
   rm -f vpn/inventory.ini &&

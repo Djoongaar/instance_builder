@@ -11,7 +11,7 @@ destroy_vpn_server() {
       terraform destroy -auto-approve
     """
 
-  rm -f vpn/config.json
+  rm -f vpn/instance.json
   rm -f vpn/inventory.ini
   rm -rf vpn/.ssh
 }
