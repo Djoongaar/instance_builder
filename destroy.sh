@@ -1,9 +1,19 @@
 #!/bin/bash
 
-docker compose up -d &&
-docker exec instance_builder bash -c """
-  cd vpn &&
-  terraform destroy -auto-approve
-  """
+destroy_vpn_server() {
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c """
+      cd vpn &&
+      terraform destroy -auto-approve
+    """
 
-rm -f vpn/inventory.ini
+  rm -f vpn/config.json
+  rm -f vpn/inventory.ini
+  rm -rf vpn/.ssh
+}
+
+destroy_vpn_server
