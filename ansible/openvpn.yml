@@ -1,4 +1,4 @@
-- name: Install OpenVPN Server
+- name: Install and Configure Public Key Infrastructure, Ubuntu Firewall and OpenVPN Server
   hosts: myhosts
   vars:
     ansible_ssh_private_key_file: "vpn/.ssh/id_rsa"
@@ -78,18 +78,18 @@
 
     - name: Create Client Config
       ansible.builtin.shell: |
-        mkdir -p ~/client-config/keys
-        chmod -R 700 ~/client-config
+        mkdir -p ~/client-configs/keys
+        chmod -R 700 ~/client-configs
 
     - name: Add Certificate for Admin
       ansible.builtin.shell: |
         cd ~/easy-rsa
         ./easyrsa --batch gen-req admin nopass
-        cp pki/private/admin.key ~/client-config/keys/
+        cp pki/private/admin.key ~/client-configs/keys/
         ./easyrsa --batch sign-req client admin
-        cp pki/issued/admin.crt ~/client-config/keys/
-        cp ~/easy-rsa/pki/ca.crt ~/client-config/keys/
-        cp ta.key ~/client-config/keys/
+        cp pki/issued/admin.crt ~/client-configs/keys/
+        cp ~/easy-rsa/pki/ca.crt ~/client-configs/keys/
+        cp ta.key ~/client-configs/keys/
 
     - name: Configure OpenVPN server
       ansible.builtin.shell: |
@@ -103,8 +103,56 @@
         sed -i '/^;dh dh2048.pem.*/a dh none' ~/server.conf
         sed -i '/^;push \"dhcp-option DNS 208.67.222.222\".*/s/^;//g' ~/server.conf
         sed -i '/^;push \"dhcp-option DNS 208.67.220.220\".*/s/^;//g' ~/server.conf
-        sed -i "/^;user .*/c\user nobody" ~/server.conf
-        sed -i "/^;group .*/c\group nogroup" ~/server.conf
+        sed -i '/^;user .*/c\user nobody' ~/server.conf
+        sed -i '/^;group .*/c\group nogroup' ~/server.conf
         sed -i '/^;push \"redirect-gateway def1 bypass-dhcp\".*/s/^;//g' ~/server.conf
         sudo cp ~/server.conf /etc/openvpn/server/
         rm -f ~/server.conf
+
+    - name: Configure IP forwarding
+      ansible.builtin.shell: |
+        sudo cp /etc/sysctl.conf ~/sysctl.conf
+        sudo chown $USER:$USER ~/sysctl.conf
+        echo "net.ipv4.ip_forward=1" >> ~/sysctl.conf
+        sudo cp ~/sysctl.conf /etc/sysctl.conf
+        rm -f ~/sysctl.conf
+        sudo sysctl -p
+
+    - name: Install and Configure Ubuntu Firewall
+      ansible.builtin.shell: |
+        sudo apt-get update && sudo apt-get -y install ufw
+        export DEFAULT_INTERFACE_NAME=$(ip route show default | awk '/default/ {print $5}')
+        sudo cp /etc/ufw/before.rules ~/before.rules
+        sudo chown $USER:$USER ~/before.rules
+        sed -i '1s/^/# START OPENVPN RULES\n/' ~/before.rules
+        sed -i '2s/^/# NAT table rules\n/' ~/before.rules
+        sed -i '3s/^/*nat\n/' ~/before.rules
+        sed -i '4s/^/:POSTROUTING ACCEPT [0:0]\n/' ~/before.rules
+        sed -i '5s/^/# Allow traffic from OpenVPN client to '"$DEFAULT_INTERFACE_NAME"' (change to the interface you discovered!)\n/' ~/before.rules
+        sed -i '6s/^/-A POSTROUTING -s 10.8.0.0\/8 -o '"$DEFAULT_INTERFACE_NAME"' -j MASQUERADE\n/' ~/before.rules
+        sed -i '7s/^/COMMIT\n/' ~/before.rules
+        sed -i '8s/^/# END OPENVPN RULES\n/' ~/before.rules
+        sudo cp ~/before.rules /etc/ufw/before.rules
+        rm -f ~/before.rules
+        sudo cp /etc/default/ufw ~/ufw
+        sed -i 's/^DEFAULT_FORWARD_POLICY=\"DROP\".*/#&/' ~/ufw
+        sed -i '/^#DEFAULT_FORWARD_POLICY=\"DROP\".*/a DEFAULT_FORWARD_POLICY=\"ACCEPT\"' ~/ufw
+        sudo cp ~/ufw /etc/default/ufw
+        rm -f ~/ufw
+        sudo ufw allow 1194/udp
+        sudo ufw allow OpenSSH
+        sudo ufw disable
+        sudo ufw --force enable
+
+    - name: Starting OpenVPN server
+      ansible.builtin.shell: |
+        sudo systemctl -f enable openvpn-server@server.service
+        sudo systemctl start openvpn-server@server.service
+
+    - name: Creating the Client Configuration Infrastructure
+      ansible.builtin.shell: |
+        mkdir -p ~/client-configs/files
+        cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf ~/client-configs/base.conf
+        sed -i '/^remote .*/c\remote {{ ansible_ssh_host }} 1194' ~/client-configs/base.conf
+        sed -i '/^;user .*/c\user nobody' ~/client-configs/base.conf
+        sed -i '/^;group .*/c\group nogroup' ~/client-configs/base.conf

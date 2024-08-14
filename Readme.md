@@ -99,3 +99,16 @@ cd ~/easy-rsa
 /usr/sbin/openvpn --genkey --secret ta.key
 sudo cp ta.key /etc/openvpn/server
 ```
+
+### Testing ssh connection to instance
+
+```commandline
+docker run --rm --volume "./vpn:/code/vpn" -it ghcr.io/djoongaar/terraform bash
+ssh -i vpn/.ssh/id_rsa instance_public_ip
+```
+
+### Checking OpenCPN Server status
+
+```commandline
+docker run --rm --volume "./vpn:/code/vpn" -it ghcr.io/djoongaar/terraform bash -c "sudo systemctl status openvpn-server@server.service"
+```

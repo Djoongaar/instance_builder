@@ -28,7 +28,7 @@ check_server_state() {
   echo "[OK]"
 }
 
-create_vpn_server() {
+create_server() {
   docker run \
     --rm \
     --volume "./vpn:/code/vpn" \
@@ -65,7 +65,7 @@ create_vpn_server() {
   echo  "$INSTANCE_PUBLIC_IP" >> vpn/inventory.ini
 }
 
-create_pki() {
+install_openvpn() {
   check_server_state "$INSTANCE_ID"
 
   docker run \
@@ -77,5 +77,5 @@ create_pki() {
     bash -c "ansible-playbook -v -i vpn/inventory.ini ansible/openvpn.yml"
 }
 
-create_vpn_server
-create_pki
+create_server
+install_openvpn
