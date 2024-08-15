@@ -6,21 +6,9 @@
     - name: Ping my hosts
       ansible.builtin.ping:
 
-    - name: Print message
-      ansible.builtin.debug:
-        msg: I am alive
-
-    - name: Whoami
-      ansible.builtin.shell:
-        cmd: whoami
-
-    - name: Update apt
-      ansible.builtin.shell:
-        cmd: sudo apt update
-
     - name: Install openvpn and easy-rsa
       ansible.builtin.shell:
-        cmd: sudo apt install -y openvpn easy-rsa
+        cmd: sudo apt update && sudo apt install -y openvpn easy-rsa
 
     - name: Create easy-rsa directory
       ansible.builtin.file:
@@ -94,8 +82,8 @@
     - name: Configure OpenVPN server
       ansible.builtin.shell: |
         sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf ~/server.conf
-        sed -i 's/^tls-auth ta.key .*/;&/' ~/server.conf
-        sed -i '/^;tls-auth ta.key .*/a tls-crypt ta.key' ~/server.conf
+        sed -i 's/^tls-auth ta.key.*/;&/' ~/server.conf
+        sed -i '/^;tls-auth ta.key.*/a tls-crypt ta.key' ~/server.conf
         sed -i 's/^cipher AES-256-CBC.*/;&/' ~/server.conf
         sed -i '/^;cipher AES-256-CBC.*/a cipher AES-256-GCM' ~/server.conf
         sed -i '/^cipher AES-256-GCM/a auth SHA256' ~/server.conf
@@ -152,7 +140,43 @@
     - name: Creating the Client Configuration Infrastructure
       ansible.builtin.shell: |
         mkdir -p ~/client-configs/files
-        cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf ~/client-configs/base.conf
-        sed -i '/^remote .*/c\remote {{ ansible_ssh_host }} 1194' ~/client-configs/base.conf
-        sed -i '/^;user .*/c\user nobody' ~/client-configs/base.conf
-        sed -i '/^;group .*/c\group nogroup' ~/client-configs/base.conf
+        cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf     ~/client-configs/base.conf
+        sed -i '/^remote .*/c\remote {{ ansible_ssh_host }} 1194'   ~/client-configs/base.conf
+        sed -i '/^;user .*/c\user nobody'                           ~/client-configs/base.conf
+        sed -i '/^;group .*/c\group nogroup'                        ~/client-configs/base.conf
+        sed -i 's/^ca ca\.crt.*/;&/'                                ~/client-configs/base.conf
+        sed -i 's/^cert client\.crt.*/;&/'                          ~/client-configs/base.conf
+        sed -i 's/^key client\.key.*/;&/'                           ~/client-configs/base.conf
+        sed -i 's/^tls-auth ta\.key.*/;&/'                          ~/client-configs/base.conf
+        sed -i '/^;tls-auth ta\.key.*/a auth SHA256'                ~/client-configs/base.conf
+        sed -i '/^auth SHA256/a key-direction 1'                    ~/client-configs/base.conf
+        sed -i 's/^cipher AES-256-CBC.*/;&/'                        ~/client-configs/base.conf
+        sed -i '/^;cipher AES-256-CBC.*/a cipher AES-256-GCM'       ~/client-configs/base.conf
+        echo "\n"                                         >> ~/client-configs/base.conf
+        echo "# DNS resolver"                             >> ~/client-configs/base.conf
+        echo ";script-security 2"                         >> ~/client-configs/base.conf
+        echo ";up /etc/openvpn/update-resolv-conf"        >> ~/client-configs/base.conf
+        echo ";down /etc/openvpn/update-resolv-conf"      >> ~/client-configs/base.conf
+        echo ";script-security 2"                         >> ~/client-configs/base.conf
+        echo ";up /etc/openvpn/update-systemd-resolved"   >> ~/client-configs/base.conf
+        echo ";down /etc/openvpn/update-systemd-resolved" >> ~/client-configs/base.conf
+        echo ";down-pre"                                  >> ~/client-configs/base.conf
+        echo ";dhcp-option DOMAIN-ROUTE ."                >> ~/client-configs/base.conf
+
+    - name: Copy make_config.sh script
+      ansible.builtin.copy:
+        src: /code/vpn/make_config.sh
+        dest: ~/client-configs/make_config.sh
+        owner: admin
+        group: admin
+        mode: '0700'
+
+    - name: Make admin config
+      ansible.builtin.shell: |
+        cd ~/client-configs
+        ./make_config.sh admin
+
+    - name: Copy admin.ovpn
+      ansible.builtin.fetch:
+        src: ~/client-configs/files/admin.ovpn
+        dest: vpn/admin.ovpn
