@@ -1,7 +1,7 @@
 
 ### Create Public Key Infrastructure (PKI, aka x509) and OpenVPN Server
 
-`docker exec instance_builder bash -c "ansible-playbook -v -i vpn/inventory.ini ansible/openvpn.yml"`
+`docker exec instance_builder bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/openvpn.yml"`
 
 ### Step 1
 The first step in this tutorial is to install OpenVPN and Easy-RSA. Easy-RSA is a public key infrastructure

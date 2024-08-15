@@ -71,10 +71,9 @@ install_openvpn() {
   docker run \
     --rm \
     --volume "./vpn:/code/vpn" \
-    --volume "./ansible:/code/ansible" \
     --env-file .env \
     ghcr.io/djoongaar/terraform \
-    bash -c "ansible-playbook -v -i vpn/inventory.ini ansible/openvpn.yml"
+    bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/openvpn.yml"
 }
 
 get_admin_configuration() {
@@ -85,7 +84,7 @@ get_admin_configuration() {
     --volume "./vpn:/code/vpn" \
     --env-file .env \
     ghcr.io/djoongaar/terraform \
-    bash -c "scp -i vpn/.ssh/id_rsa $INSTANCE_PUBLIC_IP:~/client-configs/files/admin.ovpn vpn/admin.ovpn"
+    bash -c "scp -i vpn/.ssh/id_rsa $INSTANCE_PUBLIC_IP:~/client-configs/files/admin.ovpn vpn/aws.ovpn"
 }
 
 create_server

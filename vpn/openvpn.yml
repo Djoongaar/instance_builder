@@ -46,11 +46,13 @@
         ./easyrsa --batch gen-req server nopass
         sudo cp ~/easy-rsa/pki/private/server.key /etc/openvpn/server/
 
+#    TODO: Вынести Центр Сертификации (СА) на отдельный сервер
     - name: Building CA
       ansible.builtin.shell: |
         cd ~/easy-rsa
         ./easyrsa --batch build-ca nopass
 
+#    TODO: Подписание сертификата в СА вынести в отдельный вызываемый модуль
     - name: Signing the OpenVPN Certificate Request
       ansible.builtin.shell: |
         cd ~/easy-rsa
@@ -69,6 +71,7 @@
         mkdir -p ~/client-configs/keys
         chmod -R 700 ~/client-configs
 
+#    TODO: Подписание запроса сертификата вынести отдельно
     - name: Add Certificate for Admin
       ansible.builtin.shell: |
         cd ~/easy-rsa
