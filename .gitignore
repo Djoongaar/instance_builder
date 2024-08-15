@@ -4,3 +4,4 @@ vpn/.*
 vpn/terraform*
 vpn/inventory.ini
 vpn/instance.json
+vpn/admin.ovpn

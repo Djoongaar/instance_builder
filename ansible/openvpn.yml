@@ -157,7 +157,6 @@
         echo ";script-security 2"                         >> ~/client-configs/base.conf
         echo ";up /etc/openvpn/update-resolv-conf"        >> ~/client-configs/base.conf
         echo ";down /etc/openvpn/update-resolv-conf"      >> ~/client-configs/base.conf
-        echo ";script-security 2"                         >> ~/client-configs/base.conf
         echo ";up /etc/openvpn/update-systemd-resolved"   >> ~/client-configs/base.conf
         echo ";down /etc/openvpn/update-systemd-resolved" >> ~/client-configs/base.conf
         echo ";down-pre"                                  >> ~/client-configs/base.conf
@@ -175,8 +174,3 @@
       ansible.builtin.shell: |
         cd ~/client-configs
         ./make_config.sh admin
-
-    - name: Copy admin.ovpn
-      ansible.builtin.fetch:
-        src: ~/client-configs/files/admin.ovpn
-        dest: vpn/admin.ovpn

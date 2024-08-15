@@ -77,5 +77,17 @@ install_openvpn() {
     bash -c "ansible-playbook -v -i vpn/inventory.ini ansible/openvpn.yml"
 }
 
+get_admin_configuration() {
+  export INSTANCE_PUBLIC_IP=$(cat vpn/instance.json | jq -r '.instance_public_ip.value')
+
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c "scp -i vpn/.ssh/id_rsa $INSTANCE_PUBLIC_IP:~/client-configs/files/admin.ovpn vpn/admin.ovpn"
+}
+
 create_server
 install_openvpn
+get_admin_configuration

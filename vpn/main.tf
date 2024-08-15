@@ -23,9 +23,9 @@ data "aws_vpc" "main" {
   id = var.vpc_id
 }
 
-resource "aws_security_group" "allow_ssh" {
-  name        = "allow_ssh"
-  description = "Allow only SSH traffic"
+resource "aws_security_group" "ssh_and_vpn" {
+  name        = "ssh_and_vpn"
+  description = "Allow only SSH and OpenVPN traffic"
 
   vpc_id = data.aws_vpc.main.id
 
@@ -37,9 +37,9 @@ resource "aws_security_group" "allow_ssh" {
   }
   ingress {
     cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 8
-    to_port     = 0
-    protocol    = "icmp"
+    from_port   = 1194
+    to_port     = 1194
+    protocol    = "udp"
   }
   egress {
     from_port   = 0
@@ -49,7 +49,7 @@ resource "aws_security_group" "allow_ssh" {
   }
 
   tags = {
-    Name = "allow_ssh"
+    Name = "ssh_and_vpn"
   }
 }
 
@@ -68,7 +68,7 @@ resource "aws_instance" "server" {
   instance_type               = var.instance_type
   key_name                    = aws_key_pair.openssh_key.key_name
   associate_public_ip_address = true
-  security_groups             = [aws_security_group.allow_ssh.name]
+  security_groups             = [aws_security_group.ssh_and_vpn.name]
 
   root_block_device {
     volume_size = 20
