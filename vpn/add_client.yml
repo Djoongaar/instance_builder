@@ -1,0 +1,20 @@
+- name: Add new client
+  hosts: myhosts
+  vars:
+    ansible_ssh_private_key_file: "vpn/.ssh/id_rsa"
+  tasks:
+    - name: Ping my hosts
+      ansible.builtin.ping:
+
+    - name: Add Certificate for new client
+      ansible.builtin.shell: |
+        cd ~/easy-rsa
+        ./easyrsa --batch gen-req {{ new_client }} nopass
+        cp pki/private/{{ new_client }}.key ~/client-configs/keys/
+        ./easyrsa --batch sign-req client {{ new_client }}
+        cp pki/issued/{{ new_client }}.crt ~/client-configs/keys/
+
+    - name: Make admin config
+      ansible.builtin.shell: |
+        cd ~/client-configs
+        ./make_config.sh {{ new_client }}

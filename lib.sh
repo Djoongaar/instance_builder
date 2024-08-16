@@ -1,7 +1,5 @@
 #!/bin/bash
 
-### BUILD AN INSTANCE BY TERRAFORM
-
 check_server_state() {
   local counter=0
   local max_try=100
@@ -28,7 +26,7 @@ check_server_state() {
   echo "[OK]"
 }
 
-create_server() {
+_create_server() {
   docker run \
     --rm \
     --volume "./vpn:/code/vpn" \
@@ -55,17 +53,13 @@ create_server() {
       terraform output -json
     """ > vpn/instance.json
 
-  # Exporting variables
-  export INSTANCE_PUBLIC_IP=$(cat vpn/instance.json | jq -r '.instance_public_ip.value')
-  export INSTANCE_ID=$(cat vpn/instance.json | jq -r '.instance_id.value')
-
   # Creating inventory
   rm -f vpn/inventory.ini &&
   echo "[myhosts]" >> vpn/inventory.ini
   echo  "$INSTANCE_PUBLIC_IP" >> vpn/inventory.ini
 }
 
-install_openvpn() {
+_install_openvpn() {
   check_server_state "$INSTANCE_ID"
 
   docker run \
@@ -76,9 +70,7 @@ install_openvpn() {
     bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/openvpn.yml"
 }
 
-get_admin_configuration() {
-  export INSTANCE_PUBLIC_IP=$(cat vpn/instance.json | jq -r '.instance_public_ip.value')
-
+_get_admin_configuration() {
   docker run \
     --rm \
     --volume "./vpn:/code/vpn" \
@@ -87,6 +79,38 @@ get_admin_configuration() {
     bash -c "scp -i vpn/.ssh/id_rsa $INSTANCE_PUBLIC_IP:~/client-configs/files/admin.ovpn vpn/aws.ovpn"
 }
 
-create_server
-install_openvpn
-get_admin_configuration
+_destroy_server() {
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c """
+      cd vpn &&
+      terraform destroy -auto-approve
+    """
+
+  rm -f vpn/instance.json
+  rm -f vpn/inventory.ini
+  rm -rf vpn/.ssh
+}
+
+_add_client() {
+  local client_name="$1"
+
+  check_server_state "$INSTANCE_ID"
+  echo $client_name
+
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    ghcr.io/djoongaar/terraform \
+    bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/add_client.yml -e \"new_client=$client_name\""
+
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c "scp -i vpn/.ssh/id_rsa $INSTANCE_PUBLIC_IP:~/client-configs/files/$client_name.ovpn vpn/$client_name.ovpn"
+}
