@@ -151,3 +151,11 @@ elif [ "$1" = "--add-vpn-client" ]; then
     _add_vpn_client "$2"
   fi
 fi
+
+# TODO: Allocate Elastic IP address
+# TODO: Bind elastic IP with VPN server
+# TODO: Create new instance for PostgreSQL
+# TODO: Install and configure PostgreSQL
+# TODO: Create instance for LDAP
+# TODO: Install LDAP and create test user
+# TODO: Configure LDAP authentication for PostgreSQL server
