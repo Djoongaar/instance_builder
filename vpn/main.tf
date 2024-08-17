@@ -1,4 +1,4 @@
-variable "instance_name" { type = string }
+variable "vpn_instance_name" { type = string }
 variable "instance_type" { type = string }
 variable "zone" { type = string }
 variable "ami" { type = string }
@@ -41,6 +41,12 @@ resource "aws_security_group" "ssh_and_vpn" {
     to_port     = 1194
     protocol    = "udp"
   }
+  ingress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 8
+    to_port     = 0
+    protocol    = "icmp"
+  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -76,8 +82,13 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    Name = var.instance_name
+    Name = var.vpn_instance_name
   }
+
+  user_data = <<-EOF
+    #!/bin/bash
+    echo "export HOSTNAME=${var.vpn_instance_name}" >> ~/.bashrc
+    EOF
 }
 
 output "instance_id" {
