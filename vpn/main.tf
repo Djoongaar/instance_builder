@@ -1,6 +1,5 @@
 variable "vpn_instance_name" { type = string }
 variable "instance_type" { type = string }
-variable "zone" { type = string }
 variable "ami" { type = string }
 variable "vpc_id" { type = string }
 
@@ -15,12 +14,12 @@ terraform {
   required_version = ">= 1.2.0"
 }
 
-provider "aws" {
-  region = var.zone
-}
-
 data "aws_vpc" "main" {
   id = var.vpc_id
+}
+
+resource "aws_eip" "my_static_ip" {
+  instance = aws_instance.server.id
 }
 
 resource "aws_security_group" "ssh_and_vpn" {
@@ -84,11 +83,6 @@ resource "aws_instance" "server" {
   tags = {
     Name = var.vpn_instance_name
   }
-
-  user_data = <<-EOF
-    #!/bin/bash
-    echo "export HOSTNAME=${var.vpn_instance_name}" >> ~/.bashrc
-    EOF
 }
 
 output "instance_id" {
@@ -98,7 +92,12 @@ output "instance_id" {
 
 output "instance_public_ip" {
   description = "Public IP address of the EC2 instance"
-  value       = aws_instance.server.public_ip
+  value       = aws_eip.my_static_ip.public_ip
+}
+
+output "instance_private_ip" {
+  description = "Public IP address of the EC2 instance"
+  value       = aws_eip.my_static_ip.private_ip
 }
 
 resource "local_file" "private_key" {

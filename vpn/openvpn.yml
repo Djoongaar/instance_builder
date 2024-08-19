@@ -172,8 +172,3 @@
         owner: admin
         group: admin
         mode: '0700'
-
-    - name: Make admin config
-      ansible.builtin.shell: |
-        cd ~/client-configs
-        ./make_config.sh admin
