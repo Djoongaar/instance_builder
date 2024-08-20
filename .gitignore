@@ -1,7 +1,7 @@
 .env
 .idea/
-vpn/.*
-vpn/terraform*
-vpn/inventory.ini
-vpn/instance.json
-vpn/*.ovpn
+*/.*
+*/terraform*
+*/inventory.ini
+*/instance.json
+*/*.ovpn

@@ -27,6 +27,58 @@ _check_server_state() {
   echo "[OK]"
 }
 
+_create_postgres_server() {
+  docker run \
+    --rm \
+    --volume "./postgres:/code/postgres" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c """
+      cd postgres &&
+      terraform init &&
+      terraform fmt &&
+      terraform validate &&
+      terraform apply -auto-approve &&
+      chmod 400 .ssh/id_rsa
+    """
+
+  # Save instance metadata
+  rm -f postgres/instance.json &&
+  docker run \
+    --rm \
+    --volume "./postgres:/code/postgres" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c """
+      cd postgres &&
+      terraform output -json
+    """ > postgres/instance.json
+
+  # Creating inventory
+
+  local instance_private_ip=$(cat postgres/instance.json | jq -r '.instance_private_ip.value')
+
+  rm -f postgres/inventory.ini &&
+  echo "[myhosts]" >> postgres/inventory.ini
+  echo  "$instance_private_ip" >> postgres/inventory.ini
+}
+
+_destroy_postgres_server() {
+  docker run \
+    --rm \
+    --volume "./postgres:/code/postgres" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c """
+      cd postgres &&
+      terraform destroy -auto-approve
+    """
+
+  rm -f postgres/instance.json
+  rm -f postgres/inventory.ini
+  rm -rf postgres/.ssh
+}
+
 _create_vpn_server() {
   docker run \
     --rm \
@@ -42,7 +94,7 @@ _create_vpn_server() {
       chmod 400 .ssh/id_rsa
     """
 
-  # Saving instance configuration into json file
+  # Save instance metadata
   rm -f vpn/instance.json &&
   docker run \
     --rm \
@@ -63,19 +115,6 @@ _create_vpn_server() {
   echo  "$instance_public_ip" >> vpn/inventory.ini
 }
 
-_install_openvpn() {
-  local instance_id=$(cat vpn/instance.json | jq -r '.instance_id.value')
-
-  _check_server_state "$instance_id"
-
-  docker run \
-    --rm \
-    --volume "./vpn:/code/vpn" \
-    --env-file .env \
-    ghcr.io/djoongaar/terraform \
-    bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/openvpn.yml"
-}
-
 _destroy_vpn_server() {
   docker run \
     --rm \
@@ -90,6 +129,32 @@ _destroy_vpn_server() {
   rm -f vpn/instance.json
   rm -f vpn/inventory.ini
   rm -rf vpn/.ssh
+}
+
+_install_openvpn() {
+  local instance_id=$(cat vpn/instance.json | jq -r '.instance_id.value')
+
+  _check_server_state "$instance_id"
+
+  docker run \
+    --rm \
+    --volume "./vpn:/code/vpn" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c "ansible-playbook -v -i vpn/inventory.ini vpn/openvpn.yml"
+}
+
+_install_postgresql() {
+  local instance_id=$(cat postgres/instance.json | jq -r '.instance_id.value')
+
+  _check_server_state "$instance_id"
+
+  docker run \
+    --rm \
+    --volume "./postgres:/code/postgres" \
+    --env-file .env \
+    ghcr.io/djoongaar/terraform \
+    bash -c "ansible-playbook -v -i postgres/inventory.ini postgres/postgres.yml"
 }
 
 _validate_client_name() {
@@ -132,29 +197,27 @@ _add_vpn_client() {
 }
 
 if [ "$1" = "--create-vpn-server" ]; then
-  ### Build an instance by terraform
 	_create_vpn_server
+elif [ "$1" = "--create-postgres-server"  ]; then
+  _create_postgres_server
 elif [ "$1" = "--install-openvpn" ]; then
-  ### Install and configure OpenVPN Server, PKI
   _install_openvpn
-  ### Create admin configuration
   _add_vpn_client "admin"
+elif [ "$1" = "--install-postgresql" ]; then
+  _install_postgresql
 elif [ "$1" = "--destroy-vpn-server" ]; then
   _destroy_vpn_server
+elif [ "$1" = "--destroy-postgres-server"  ]; then
+  _destroy_postgres_server
 elif [ "$1" = "--add-vpn-client" ]; then
   if [ -z $2 ]; then
     echo "You should provide client name"
   else
-    # TODO: Вот тут нужно доабвить валидацию имени:
-    # TODO: Приводить имя клиента к нижнему регистру
-    # TODO: Имя должно быть уникально
+    # TODO: Проверять уникально ли имя, если нет то возвращать ошибку
     _add_vpn_client "$2"
   fi
 fi
 
-# TODO: Allocate Elastic IP address
-# TODO: Bind elastic IP with VPN server
-# TODO: Create new instance for PostgreSQL
 # TODO: Install and configure PostgreSQL
 # TODO: Create instance for LDAP
 # TODO: Install LDAP and create test user

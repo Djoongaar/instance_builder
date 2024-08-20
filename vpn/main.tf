@@ -1,5 +1,3 @@
-variable "vpn_instance_name" { type = string }
-variable "instance_type" { type = string }
 variable "ami" { type = string }
 variable "vpc_id" { type = string }
 
@@ -24,24 +22,27 @@ resource "aws_eip" "my_static_ip" {
 
 resource "aws_security_group" "ssh_and_vpn" {
   name        = "ssh_and_vpn"
-  description = "Allow only SSH and OpenVPN traffic"
+  description = "Allow only SSH and OpenVPN traffic from everywhere and ICMP traffic only for local instances"
 
   vpc_id = data.aws_vpc.main.id
 
+  #   VPN server available from everywhere
+  ingress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 443
+    to_port     = 443
+    protocol    = "udp"
+  }
+  #   SSH only under VPN
   ingress {
     cidr_blocks = ["0.0.0.0/0"]
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
   }
+  #   ICMP also under VPN
   ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 1194
-    to_port     = 1194
-    protocol    = "udp"
-  }
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["172.31.32.0/20"]
     from_port   = 8
     to_port     = 0
     protocol    = "icmp"
@@ -63,15 +64,15 @@ resource "tls_private_key" "id_rsa" {
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "openssh_key" {
+resource "aws_key_pair" "vpn_server_key" {
   key_name   = "openssh_key"
   public_key = tls_private_key.id_rsa.public_key_openssh
 }
 
 resource "aws_instance" "server" {
   ami                         = var.ami
-  instance_type               = var.instance_type
-  key_name                    = aws_key_pair.openssh_key.key_name
+  instance_type               = "t2.micro"
+  key_name                    = aws_key_pair.vpn_server_key.key_name
   associate_public_ip_address = true
   security_groups             = [aws_security_group.ssh_and_vpn.name]
 
@@ -81,7 +82,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    Name = var.vpn_instance_name
+    Name = "openVpnServer"
   }
 }
 

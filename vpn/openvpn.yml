@@ -8,7 +8,7 @@
 
     - name: Install openvpn and easy-rsa
       ansible.builtin.shell:
-        cmd: sudo apt update && sudo apt install -y openvpn easy-rsa
+        cmd: sudo apt update && sudo apt install -y openvpn easy-rsa net-tools
 
     - name: Create easy-rsa directory
       ansible.builtin.file:
@@ -85,18 +85,19 @@
     - name: Configure OpenVPN server
       ansible.builtin.shell: |
         sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf ~/server.conf
-        sed -i 's/^tls-auth ta.key.*/;&/' ~/server.conf
-        sed -i '/^;tls-auth ta.key.*/a tls-crypt ta.key' ~/server.conf
-        sed -i 's/^cipher AES-256-CBC.*/;&/' ~/server.conf
-        sed -i '/^;cipher AES-256-CBC.*/a cipher AES-256-GCM' ~/server.conf
-        sed -i '/^cipher AES-256-GCM/a auth SHA256' ~/server.conf
-        sed -i 's/^dh dh2048.pem.*/;&/' ~/server.conf
-        sed -i '/^;dh dh2048.pem.*/a dh none' ~/server.conf
-        sed -i '/^;push \"dhcp-option DNS 208.67.222.222\".*/s/^;//g' ~/server.conf
-        sed -i '/^;push \"dhcp-option DNS 208.67.220.220\".*/s/^;//g' ~/server.conf
-        sed -i '/^;user .*/c\user nobody' ~/server.conf
-        sed -i '/^;group .*/c\group nogroup' ~/server.conf
-        sed -i '/^;push \"redirect-gateway def1 bypass-dhcp\".*/s/^;//g' ~/server.conf
+        sed -i '/^port 1194.*/c\port 443'                                       ~/server.conf
+        sed -i 's/^tls-auth ta.key.*/;&/'                                       ~/server.conf
+        sed -i '/^;tls-auth ta.key.*/a tls-crypt ta.key'                        ~/server.conf
+        sed -i 's/^cipher AES-256-CBC.*/;&/'                                    ~/server.conf
+        sed -i '/^;cipher AES-256-CBC.*/a cipher AES-256-GCM'                   ~/server.conf
+        sed -i '/^cipher AES-256-GCM/a auth SHA256'                             ~/server.conf
+        sed -i 's/^dh dh2048.pem.*/;&/'                                         ~/server.conf
+        sed -i '/^;dh dh2048.pem.*/a dh none'                                   ~/server.conf
+        sed -i '/^;push \"dhcp-option DNS 208.67.222.222\".*/s/^;//g'           ~/server.conf
+        sed -i '/^;push \"dhcp-option DNS 208.67.220.220\".*/s/^;//g'           ~/server.conf
+        sed -i '/^;user .*/c\user nobody'                                       ~/server.conf
+        sed -i '/^;group .*/c\group nogroup'                                    ~/server.conf
+        sed -i '/^;push \"redirect-gateway def1 bypass-dhcp\".*/s/^;//g'        ~/server.conf
         sudo cp ~/server.conf /etc/openvpn/server/
         rm -f ~/server.conf
 
@@ -109,9 +110,12 @@
         rm -f ~/sysctl.conf
         sudo sysctl -p
 
-    - name: Install and Configure Ubuntu Firewall
+    - name: Install Ubuntu Firewall
       ansible.builtin.shell: |
         sudo apt-get update && sudo apt-get -y install ufw
+
+    - name: Configure Ubuntu Firewall
+      ansible.builtin.shell: |
         export DEFAULT_INTERFACE_NAME=$(ip route show default | awk '/default/ {print $5}')
         sudo cp /etc/ufw/before.rules ~/before.rules
         sudo chown $USER:$USER ~/before.rules
@@ -130,13 +134,14 @@
         sed -i '/^#DEFAULT_FORWARD_POLICY=\"DROP\".*/a DEFAULT_FORWARD_POLICY=\"ACCEPT\"' ~/ufw
         sudo cp ~/ufw /etc/default/ufw
         rm -f ~/ufw
-        sudo ufw allow 1194/udp
+        sudo ufw allow 443/udp
         sudo ufw allow OpenSSH
         sudo ufw disable
         sudo ufw --force enable
 
     - name: Starting OpenVPN server
       ansible.builtin.shell: |
+        sudo hostnamectl set-hostname vpn
         sudo systemctl -f enable openvpn-server@server.service
         sudo systemctl start openvpn-server@server.service
 
@@ -144,7 +149,7 @@
       ansible.builtin.shell: |
         mkdir -p ~/client-configs/files
         cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf     ~/client-configs/base.conf
-        sed -i '/^remote .*/c\remote {{ ansible_ssh_host }} 1194'   ~/client-configs/base.conf
+        sed -i '/^remote .*/c\remote {{ ansible_ssh_host }} 443'    ~/client-configs/base.conf
         sed -i '/^;user .*/c\user nobody'                           ~/client-configs/base.conf
         sed -i '/^;group .*/c\group nogroup'                        ~/client-configs/base.conf
         sed -i 's/^ca ca\.crt.*/;&/'                                ~/client-configs/base.conf
