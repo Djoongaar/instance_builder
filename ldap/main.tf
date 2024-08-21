@@ -39,6 +39,13 @@ resource "aws_security_group" "locals_only" {
     to_port     = 22
     protocol    = "tcp"
   }
+  #   LDAP only under VPN
+  ingress {
+    cidr_blocks = ["172.31.32.0/20"]
+    from_port   = 389
+    to_port     = 389
+    protocol    = "tcp"
+  }
   #   ICMP only under VPN
   ingress {
     cidr_blocks = ["172.31.32.0/20"]
@@ -63,6 +70,7 @@ resource "aws_instance" "server" {
   instance_type               = "t2.micro"
   key_name                    = aws_key_pair.ldap_server_key.key_name
   associate_public_ip_address = false
+  private_ip                  = "172.31.32.102"
   security_groups             = [aws_security_group.locals_only.name]
 
   root_block_device {

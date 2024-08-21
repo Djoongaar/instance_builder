@@ -228,7 +228,7 @@ else
   echo "No such command: $1"
 fi
 
-# TODO: Install and configure PostgreSQL
-# TODO: Create instance for LDAP
-# TODO: Install LDAP and create test user
-# TODO: Configure LDAP authentication for PostgreSQL server
+# TODO: Install PostgreSQL server
+# TODO: Configure authentication in PostgreSQL with LDAP
+# TODO: Install and configure Postfix (SMTP)
+

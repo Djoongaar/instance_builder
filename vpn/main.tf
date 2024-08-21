@@ -74,6 +74,7 @@ resource "aws_instance" "server" {
   instance_type               = "t2.micro"
   key_name                    = aws_key_pair.vpn_server_key.key_name
   associate_public_ip_address = true
+  private_ip                  = "172.31.32.100"
   security_groups             = [aws_security_group.ssh_and_vpn.name]
 
   root_block_device {

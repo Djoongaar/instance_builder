@@ -45,8 +45,14 @@ sudo cat /var/log/openvpn/openvpn-status.log | grep CLIENT_LIST
 sudo nmap -n -PN -sT -sU -p <nport> <ip_address>
 ```
 
-### SSH tunnel with reverse port forwarding from remote host to local proxy-server
+### SSH tunnel with remote port forwarding
 ```commandline
-sudo ssh -R 3129:localhost:3128 -i postgres/.ssh/id_rsa admin@<ip_address>
+sudo ssh -R 3129:localhost:3128 -i postgres/.ssh/id_rsa admin@172.31.32.102
 ```
 * Its demanded set proxy-server address localhost:3129 on remote host 
+
+### SSH tunnel with remote and local port forwarding
+```commandline
+sudo ssh -R 3129:localhost:3128 -L 8080:localhost:80 -i ldap/.ssh/id_rsa admin@172.31.32.102
+```
+

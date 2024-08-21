@@ -63,6 +63,7 @@ resource "aws_instance" "server" {
   instance_type               = "t2.micro"
   key_name                    = aws_key_pair.postgres_server_key.key_name
   associate_public_ip_address = false
+  private_ip                  = "172.31.32.101"
   security_groups             = [aws_security_group.locals_only.name]
 
   root_block_device {
