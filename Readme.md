@@ -39,3 +39,14 @@ docker run --rm --volume "./vpn:/code/vpn" -it ghcr.io/djoongaar/terraform bash 
 ```commandline
 sudo cat /var/log/openvpn/openvpn-status.log | grep CLIENT_LIST
 ```
+
+### Scan ports
+```commandline
+sudo nmap -n -PN -sT -sU -p <nport> <ip_address>
+```
+
+### SSH tunnel with reverse port forwarding from remote host to local proxy-server
+```commandline
+sudo ssh -R 3129:localhost:3128 -i postgres/.ssh/id_rsa admin@<ip_address>
+```
+* Its demanded set proxy-server address localhost:3129 on remote host 
