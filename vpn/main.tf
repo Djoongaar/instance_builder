@@ -1,5 +1,9 @@
 variable "ami" { type = string }
 variable "vpc_id" { type = string }
+variable "vpn_subnet_id" { type = string }
+variable "sg_ssh_and_vpn" { type = string }
+variable "vpn_private_ip" { type = string }
+
 
 terraform {
   required_providers {
@@ -16,47 +20,13 @@ data "aws_vpc" "main" {
   id = var.vpc_id
 }
 
-resource "aws_eip" "my_static_ip" {
-  instance = aws_instance.server.id
+data "aws_subnet" "subnet_a" {
+  vpc_id = data.aws_vpc.main.id
+  id     = var.vpn_subnet_id
 }
 
-resource "aws_security_group" "ssh_and_vpn" {
-  name        = "ssh_and_vpn"
-  description = "Allow only SSH and OpenVPN traffic from everywhere and ICMP traffic only for local instances"
-
-  vpc_id = data.aws_vpc.main.id
-
-  #   VPN server available from everywhere
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 443
-    to_port     = 443
-    protocol    = "udp"
-  }
-  #   SSH only under VPN
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-  }
-  #   ICMP also under VPN
-  ingress {
-    cidr_blocks = ["172.31.32.0/20"]
-    from_port   = 8
-    to_port     = 0
-    protocol    = "icmp"
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = -1
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "ssh_and_vpn"
-  }
+resource "aws_eip" "my_static_ip" {
+  instance = aws_instance.server.id
 }
 
 resource "tls_private_key" "id_rsa" {
@@ -69,13 +39,25 @@ resource "aws_key_pair" "vpn_server_key" {
   public_key = tls_private_key.id_rsa.public_key_openssh
 }
 
+resource "aws_network_interface" "main" {
+  subnet_id       = data.aws_subnet.subnet_a.id
+  private_ips     = [var.vpn_private_ip]
+  security_groups = [var.sg_ssh_and_vpn]
+
+  tags = {
+    Name = "primary_network_interface"
+  }
+}
+
 resource "aws_instance" "server" {
-  ami                         = var.ami
-  instance_type               = "t2.micro"
-  key_name                    = aws_key_pair.vpn_server_key.key_name
-  associate_public_ip_address = true
-  private_ip                  = "172.31.32.100"
-  security_groups             = [aws_security_group.ssh_and_vpn.name]
+  ami           = var.ami
+  instance_type = "t2.micro"
+  key_name      = aws_key_pair.vpn_server_key.key_name
+
+  network_interface {
+    network_interface_id = aws_network_interface.main.id
+    device_index         = 0
+  }
 
   root_block_device {
     volume_size = 20
