@@ -1,8 +1,8 @@
 variable "ami" { type = string }
 variable "vpc_id" { type = string }
-variable "vpn_subnet_id" { type = string }
-variable "sg_ssh_and_vpn" { type = string }
-variable "vpn_private_ip" { type = string }
+variable "zone_a" { type = string }
+variable "ssh_key_name" { type = string }
+variable "vpn_interface_id" { type = string }
 
 
 terraform {
@@ -16,46 +16,22 @@ terraform {
   required_version = ">= 1.2.0"
 }
 
-data "aws_vpc" "main" {
+data "aws_vpc" "default" {
   id = var.vpc_id
 }
 
-data "aws_subnet" "subnet_a" {
-  vpc_id = data.aws_vpc.main.id
-  id     = var.vpn_subnet_id
-}
-
-resource "aws_eip" "my_static_ip" {
-  instance = aws_instance.server.id
-}
-
-resource "tls_private_key" "id_rsa" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "vpn_server_key" {
-  key_name   = "openssh_key"
-  public_key = tls_private_key.id_rsa.public_key_openssh
-}
-
-resource "aws_network_interface" "main" {
-  subnet_id       = data.aws_subnet.subnet_a.id
-  private_ips     = [var.vpn_private_ip]
-  security_groups = [var.sg_ssh_and_vpn]
-
-  tags = {
-    Name = "primary_network_interface"
-  }
+data "aws_key_pair" "vpn_keypair" {
+  key_name = var.ssh_key_name
 }
 
 resource "aws_instance" "server" {
-  ami           = var.ami
-  instance_type = "t2.micro"
-  key_name      = aws_key_pair.vpn_server_key.key_name
+  ami               = var.ami
+  instance_type     = "t2.micro"
+  key_name          = var.ssh_key_name
+  availability_zone = var.zone_a
 
   network_interface {
-    network_interface_id = aws_network_interface.main.id
+    network_interface_id = var.vpn_interface_id
     device_index         = 0
   }
 
@@ -65,7 +41,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    Name = "openVpnServer"
+    Name = "openVPN"
   }
 }
 
@@ -74,22 +50,12 @@ output "instance_id" {
   value       = aws_instance.server.id
 }
 
-output "instance_public_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = aws_eip.my_static_ip.public_ip
+output "private_ip" {
+  description = "Private IP of the EC2 instance"
+  value       = aws_instance.server.private_ip
 }
 
-output "instance_private_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = aws_eip.my_static_ip.private_ip
-}
-
-resource "local_file" "private_key" {
-  content  = tls_private_key.id_rsa.private_key_openssh
-  filename = ".ssh/id_rsa"
-}
-
-resource "local_file" "public_key" {
-  content  = tls_private_key.id_rsa.public_key_openssh
-  filename = ".ssh/id_rsa.pub"
+output "public_ip" {
+  description = "Private IP of the EC2 instance"
+  value       = aws_instance.server.public_ip
 }

@@ -1,82 +1,34 @@
-variable "zone_a" { type = string }
-variable "zone_b" { type = string }
-variable "zone_c" { type = string }
-variable "vpc_cidr" { type = string }
-variable "vpc_cidr_zone_a" { type = string }
-variable "vpc_cidr_zone_b" { type = string }
-variable "vpc_cidr_zone_c" { type = string }
+variable "vpc_id" { type = string }
 
 
-resource "aws_vpc" "main" {
-  cidr_block       = var.vpc_cidr
-  instance_tenancy = "default"
-
-  tags = {
-    Name = "main"
-  }
+data "aws_vpc" "default" {
+  id = var.vpc_id
 }
 
-resource "aws_internet_gateway" "default" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "default"
-  }
-}
-
-resource "aws_subnet" "subnet_a" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.vpc_cidr_zone_a
-  availability_zone = var.zone_a
-
-  tags = {
-    Name = "Subnet A"
-  }
-}
-
-resource "aws_subnet" "subnet_b" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.vpc_cidr_zone_b
-  availability_zone = var.zone_b
-
-  tags = {
-    Name = "Subnet B"
-  }
-}
-
-resource "aws_subnet" "subnet_c" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.vpc_cidr_zone_c
-  availability_zone = var.zone_c
-
-  tags = {
-    Name = "Subnet C"
-  }
-}
 
 resource "aws_security_group" "locals_only" {
   name        = "Local access only"
   description = "Allow only local TCP and ICMP traffic"
 
-  vpc_id = aws_vpc.main.id
+  vpc_id = data.aws_vpc.default.id
 
   #   SSH only under VPN
   ingress {
-    cidr_blocks = [aws_vpc.main.cidr_block]
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
   }
   #   LDAP only under VPN
   ingress {
-    cidr_blocks = [aws_vpc.main.cidr_block]
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
     from_port   = 389
     to_port     = 389
     protocol    = "tcp"
   }
   #   ICMP only under VPN
   ingress {
-    cidr_blocks = [aws_vpc.main.cidr_block]
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
     from_port   = 8
     to_port     = 0
     protocol    = "icmp"
@@ -97,7 +49,7 @@ resource "aws_security_group" "ssh_and_vpn" {
   name        = "SSH and VPN allowed only"
   description = "Allow only SSH and OpenVPN traffic from everywhere and ICMP traffic only for local instances"
 
-  vpc_id = aws_vpc.main.id
+  vpc_id = data.aws_vpc.default.id
 
   #   VPN server available from everywhere
   ingress {
@@ -115,7 +67,7 @@ resource "aws_security_group" "ssh_and_vpn" {
   }
   #   ICMP also under VPN
   ingress {
-    cidr_blocks = [aws_vpc.main.cidr_block]
+    cidr_blocks = ["0.0.0.0/0"]
     from_port   = 8
     to_port     = 0
     protocol    = "icmp"
@@ -132,32 +84,45 @@ resource "aws_security_group" "ssh_and_vpn" {
   }
 }
 
-output "vpc_id" {
-  description = "ID of the Virtual Private Cloud"
-  value       = aws_vpc.main.id
+data "aws_subnet" "subnet_a" {
+  id = "subnet-06d9397a9df4368cc"
 }
 
-output "sg_ssh_and_vpn" {
-  description = "SSH and VPN security group name"
-  value       = aws_security_group.ssh_and_vpn.id
+resource "aws_network_interface" "vpn_interface" {
+  subnet_id       = data.aws_subnet.subnet_a.id
+  security_groups = [aws_security_group.ssh_and_vpn.id]
 }
 
-output "sg_locals_only" {
-  description = "Local access only security group name"
-  value       = aws_security_group.locals_only.id
+resource "aws_eip" "my_public_ip" {
+  network_interface = aws_network_interface.vpn_interface.id
 }
 
-output "subnet_a_id" {
-  description = "AWS Subnet A id"
-  value       = aws_subnet.subnet_a.id
+resource "tls_private_key" "id_rsa" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
-output "subnet_b_id" {
-  description = "AWS Subnet B id"
-  value       = aws_subnet.subnet_b.id
+resource "aws_key_pair" "vpn_server_key" {
+  key_name   = "openssh_key"
+  public_key = tls_private_key.id_rsa.public_key_openssh
 }
 
-output "subnet_c_id" {
-  description = "AWS Subnet C id"
-  value       = aws_subnet.subnet_c.id
+output "vpn_interface_id" {
+  description = "Network interface for VPN Server"
+  value       = aws_network_interface.vpn_interface.id
+}
+
+output "ssh_key_name" {
+  description = "SSH key pair"
+  value       = aws_key_pair.vpn_server_key.key_name
+}
+
+resource "local_file" "private_key" {
+  content  = tls_private_key.id_rsa.private_key_openssh
+  filename = ".ssh/id_rsa"
+}
+
+resource "local_file" "public_key" {
+  content  = tls_private_key.id_rsa.public_key_openssh
+  filename = ".ssh/id_rsa.pub"
 }

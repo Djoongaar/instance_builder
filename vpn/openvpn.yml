@@ -1,7 +1,8 @@
 - name: Install and Configure Public Key Infrastructure, Ubuntu Firewall and OpenVPN Server
   hosts: myhosts
+  remote_user: ubuntu
   vars:
-    ansible_ssh_private_key_file: "vpn/.ssh/id_rsa"
+    ansible_ssh_private_key_file: "network/.ssh/id_rsa"
   tasks:
     - name: Ping my hosts
       ansible.builtin.ping:
@@ -15,8 +16,8 @@
         path: ~/easy-rsa
         state: directory
         mode: '0700'
-        owner: admin
-        group: admin
+        owner: ubuntu
+        group: ubuntu
 
     - name: Create a symbolic link
       ansible.builtin.shell:
@@ -174,6 +175,6 @@
       ansible.builtin.copy:
         src: /code/vpn/make_config.sh
         dest: ~/client-configs/make_config.sh
-        owner: admin
-        group: admin
+        owner: ubuntu
+        group: ubuntu
         mode: '0700'
